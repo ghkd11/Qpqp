@@ -1,0 +1,2694 @@
+<!doctype html>
+<html lang="ko"><head>
+    
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>거북목 교정 기기 — 실시간 자세 모니터링</title>
+    <meta name="description" content="스마트폰 기울기 센서 기반 실시간 거북목 자세 모니터링 및 경고 교정 웹 앱">
+    <meta property="og:title" content="거북목 교정 기기">
+    <meta property="og:description" content="스마트폰 기울기 센서 기반 실시간 거북목 자세 모니터링 및 경고 교정 웹 앱">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="theme-color" content="#F0F5FA" id="themeColorMeta">
+    <style>
+      :root {
+        --bg-canvas: #F0F5FA;
+        --bg-surface: #FFFFFF;
+        --bg-subtle: #E6EFF8;
+        --bg-elevated: rgba(255, 255, 255, 0.9);
+        --border-hairline: #DCE8F5;
+        --border-strong: #C2D7EE;
+        --text-primary: #0F2138;
+        --text-secondary: #4B6484;
+        --text-muted: #768FAD;
+        --accent-primary: #1D63ED;
+        --accent-primary-hover: #1551CC;
+        --accent-soft: #EBF2FE;
+        --accent-cyan: #0EA5E9;
+        --good-color: #059669;
+        --good-bg: #ECFDF5;
+        --good-border: #A7F3D0;
+        --warn-color: #D97706;
+        --warn-bg: #FFFBEB;
+        --warn-border: #FDE68A;
+        --danger-color: #E11D48;
+        --danger-indigo: #312E81;
+        --danger-bg: #FFF1F2;
+        --danger-border: #FECDD3;
+        --shadow-card: 0 8px 24px -6px rgba(15, 45, 90, 0.07);
+        --shadow-cta: 0 10px 22px -6px rgba(29, 99, 237, 0.35);
+        --radius-card: 24px;
+        --radius-inner: 16px;
+        --radius-btn: 14px;
+        --font-sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", "Segoe UI", sans-serif;
+        --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      }
+
+      html.dark {
+        --bg-canvas: #0B192C;
+        --bg-surface: #11223A;
+        --bg-subtle: #182F4E;
+        --bg-elevated: rgba(17, 34, 58, 0.92);
+        --border-hairline: #1E3A5F;
+        --border-strong: #2C5182;
+        --text-primary: #EBF3FC;
+        --text-secondary: #A6C0DF;
+        --text-muted: #7393B8;
+        --accent-primary: #3B82F6;
+        --accent-primary-hover: #2563EB;
+        --accent-soft: rgba(59, 130, 246, 0.16);
+        --accent-cyan: #38BDF8;
+        --good-color: #34D399;
+        --good-bg: rgba(16, 185, 129, 0.14);
+        --good-border: rgba(52, 211, 153, 0.32);
+        --warn-color: #FBBF24;
+        --warn-bg: rgba(245, 158, 11, 0.14);
+        --warn-border: rgba(251, 191, 36, 0.32);
+        --danger-color: #FB7185;
+        --danger-indigo: #C7D2FE;
+        --danger-bg: rgba(225, 29, 72, 0.16);
+        --danger-border: rgba(251, 113, 133, 0.38);
+        --shadow-card: 0 10px 28px -6px rgba(2, 8, 20, 0.45);
+        --shadow-cta: 0 10px 22px -6px rgba(59, 130, 246, 0.35);
+      }
+
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: var(--bg-canvas);
+        color: var(--text-primary);
+        font-family: var(--font-sans);
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+        transition: background-color 0.2s ease, color 0.2s ease;
+      }
+
+      body.alarm-active::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 90;
+        border: 5px solid var(--danger-color);
+        box-shadow: inset 0 0 36px rgba(225, 29, 72, 0.35);
+        animation: borderPulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+
+      @keyframes borderPulse {
+        0%, 100% {
+          opacity: 0.95;
+        }
+        50% {
+          opacity: 0.25;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        body.alarm-active::after {
+          animation: none;
+          opacity: 0.85;
+        }
+        * {
+          transition-duration: 0.01ms !important;
+        }
+      }
+
+      .tabular-nums {
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* Top Header */
+      .app-header {
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        height: 54px;
+        background: var(--bg-elevated);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--border-hairline);
+      }
+
+      .header-inner {
+        max-width: 1080px;
+        height: 100%;
+        margin: 0 auto;
+        padding: 0 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .brand-lockup {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .brand-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--accent-primary), var(--accent-cyan));
+        color: #FFFFFF;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .brand-title {
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin: 0;
+      }
+
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+
+      .sensor-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+        background: var(--bg-subtle);
+        color: var(--text-secondary);
+        border: 1px solid var(--border-hairline);
+      }
+
+      .sensor-status.active {
+        background: var(--accent-soft);
+        color: var(--accent-primary);
+        border-color: rgba(29, 99, 237, 0.25);
+      }
+
+      .sensor-status.virtual {
+        background: var(--bg-subtle);
+        color: var(--accent-cyan);
+        border-color: rgba(14, 165, 233, 0.3);
+      }
+
+      .sensor-status.error {
+        background: var(--danger-bg);
+        color: var(--danger-color);
+        border-color: var(--danger-border);
+      }
+
+      .icon-btn {
+        min-width: 44px;
+        min-height: 44px;
+        padding: 0 10px;
+        border-radius: 12px;
+        border: 1px solid var(--border-hairline);
+        background: var(--bg-surface);
+        color: var(--text-primary);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+      }
+
+      .icon-btn:hover {
+        background: var(--bg-subtle);
+      }
+
+      .icon-btn:active {
+        transform: scale(0.96);
+      }
+
+      .icon-btn:focus-visible,
+      .btn:focus-visible,
+      input:focus-visible {
+        outline: 2px solid var(--accent-primary);
+        outline-offset: 2px;
+      }
+
+      /* Main Layout */
+      .app-main {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 16px 16px 104px;
+      }
+
+      .dashboard-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+        align-items: start;
+      }
+
+      @media (min-width: 920px) {
+        .app-main {
+          padding: 24px 24px 40px;
+        }
+        .dashboard-grid {
+          grid-template-columns: 1.05fr 0.95fr;
+          gap: 20px;
+        }
+      }
+
+      .column-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      /* Card */
+      .card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-hairline);
+        border-radius: var(--radius-card);
+        box-shadow: var(--shadow-card);
+        padding: 20px;
+        transition: border-color 0.2s ease, background-color 0.2s ease;
+      }
+
+      .card.danger-state {
+        border-color: var(--danger-color);
+      }
+
+      .card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .card-title {
+        font-size: 15px;
+        font-weight: 700;
+        margin: 0;
+        color: var(--text-primary);
+        letter-spacing: -0.01em;
+      }
+
+      .card-subtitle {
+        font-size: 12px;
+        color: var(--text-muted);
+        white-space: nowrap;
+      }
+
+      /* Notice Banner */
+      .notice-banner {
+        display: none;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-strong);
+        border-radius: 18px;
+        padding: 14px 16px;
+        margin-bottom: 16px;
+        gap: 12px;
+        align-items: flex-start;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        box-shadow: var(--shadow-card);
+      }
+
+      .notice-banner.visible {
+        display: flex;
+      }
+
+      .notice-banner.warn {
+        background: var(--warn-bg);
+        border-color: var(--warn-border);
+      }
+
+      .notice-banner.info {
+        background: var(--accent-soft);
+        border-color: rgba(29, 99, 237, 0.25);
+      }
+
+      .notice-content {
+        flex: 1 1 240px;
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+      }
+
+      .notice-icon {
+        flex-shrink: 0;
+        margin-top: 2px;
+        color: var(--accent-primary);
+      }
+
+      .notice-banner.warn .notice-icon {
+        color: var(--warn-color);
+      }
+
+      .notice-title {
+        font-size: 13px;
+        font-weight: 700;
+        margin: 0 0 2px;
+        color: var(--text-primary);
+      }
+
+      .notice-desc {
+        font-size: 12px;
+        margin: 0;
+        color: var(--text-secondary);
+        line-height: 1.45;
+      }
+
+      /* Angle Gauge Section */
+      .gauge-stage {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 6px 0 12px;
+      }
+
+      .gauge-svg-wrap {
+        width: 100%;
+        max-width: 310px;
+        position: relative;
+      }
+
+      .gauge-svg {
+        width: 100%;
+        height: auto;
+        display: block;
+        overflow: visible;
+      }
+
+      .angle-readout-block {
+        text-align: center;
+        margin-top: -12px;
+      }
+
+      .angle-value-row {
+        display: inline-flex;
+        align-items: baseline;
+        justify-content: center;
+        gap: 4px;
+      }
+
+      .angle-value {
+        font-size: 56px;
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: -0.04em;
+        color: var(--text-primary);
+      }
+
+      .angle-unit {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-secondary);
+      }
+
+      .posture-state-bar {
+        margin-top: 10px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 700;
+        border: 1px solid transparent;
+        transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+      }
+
+      .posture-state-bar.idle {
+        background: var(--bg-subtle);
+        color: var(--text-secondary);
+        border-color: var(--border-hairline);
+      }
+
+      .posture-state-bar.good {
+        background: var(--good-bg);
+        color: var(--good-color);
+        border-color: var(--good-border);
+      }
+
+      .posture-state-bar.warning {
+        background: var(--warn-bg);
+        color: var(--warn-color);
+        border-color: var(--warn-border);
+      }
+
+      .posture-state-bar.danger {
+        background: var(--danger-bg);
+        color: var(--danger-color);
+        border-color: var(--danger-border);
+      }
+
+      .angle-meta-line {
+        margin-top: 10px;
+        font-size: 12px;
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .countdown-alert-strip {
+        display: none;
+        margin-top: 14px;
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: var(--radius-inner);
+        background: var(--danger-bg);
+        border: 1px solid var(--danger-border);
+        color: var(--danger-color);
+        font-size: 13px;
+        font-weight: 700;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .countdown-alert-strip.visible {
+        display: flex;
+      }
+
+      .countdown-badge {
+        font-family: var(--font-mono);
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--danger-indigo);
+      }
+
+      /* Neck & Phone Live Diagram */
+      .posture-visual-strip {
+        margin-top: 14px;
+        padding: 14px;
+        border-radius: var(--radius-inner);
+        background: var(--bg-canvas);
+        border: 1px solid var(--border-hairline);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .posture-figure-svg {
+        width: 72px;
+        height: 72px;
+        flex-shrink: 0;
+      }
+
+      .posture-guide-text {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .posture-guide-title {
+        font-size: 13px;
+        font-weight: 700;
+        margin: 0 0 3px;
+        color: var(--text-primary);
+      }
+
+      .posture-guide-desc {
+        font-size: 12px;
+        margin: 0;
+        color: var(--text-secondary);
+        line-height: 1.45;
+      }
+
+      /* Desktop Controls inside card (hidden on mobile because sticky thumb bar handles primary CTAs) */
+      .desktop-cta-row {
+        display: none;
+        margin-top: 16px;
+        gap: 10px;
+      }
+
+      @media (min-width: 920px) {
+        .desktop-cta-row {
+          display: grid;
+          grid-template-columns: 1.2fr 1fr;
+        }
+      }
+
+      /* Buttons */
+      .btn {
+        min-height: 48px;
+        padding: 12px 18px;
+        border-radius: var(--radius-btn);
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 700;
+        border: 1px solid transparent;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        white-space: nowrap;
+        transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.12s ease, color 0.15s ease;
+      }
+
+      .btn:active {
+        transform: scale(0.98);
+      }
+
+      .btn-primary {
+        background: var(--accent-primary);
+        color: #FFFFFF;
+        box-shadow: var(--shadow-cta);
+      }
+
+      .btn-primary:hover {
+        background: var(--accent-primary-hover);
+      }
+
+      .btn-primary.paused-state {
+        background: var(--text-primary);
+        color: var(--bg-surface);
+        box-shadow: none;
+      }
+
+      .btn-secondary {
+        background: var(--bg-subtle);
+        color: var(--text-primary);
+        border-color: var(--border-hairline);
+      }
+
+      .btn-secondary:hover {
+        background: var(--border-hairline);
+      }
+
+      .btn-sm {
+        min-height: 36px;
+        padding: 7px 12px;
+        font-size: 12px;
+        border-radius: 10px;
+      }
+
+      .btn-danger-outline {
+        background: transparent;
+        color: var(--danger-color);
+        border-color: var(--danger-border);
+      }
+
+      .btn-danger-outline:hover {
+        background: var(--danger-bg);
+      }
+
+      /* Virtual Angle Slider Card */
+      .virtual-panel {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border-hairline);
+      }
+
+      .virtual-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .virtual-label-group {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .virtual-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text-primary);
+      }
+
+      .virtual-desc {
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      .virtual-controls {
+        display: none;
+        margin-top: 14px;
+        padding: 14px;
+        border-radius: var(--radius-inner);
+        background: var(--bg-canvas);
+        border: 1px solid var(--border-hairline);
+      }
+
+      .virtual-controls.visible {
+        display: block;
+      }
+
+      .slider-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .angle-slider {
+        flex: 1;
+        -webkit-appearance: none;
+        appearance: none;
+        height: 8px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--danger-color) 0%, var(--danger-color) 33%, var(--warn-color) 33%, var(--warn-color) 50%, var(--good-color) 50%, var(--good-color) 83%, var(--warn-color) 83%, var(--warn-color) 100%);
+        outline: none;
+        cursor: pointer;
+      }
+
+      .angle-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: #FFFFFF;
+        border: 3px solid var(--accent-primary);
+        box-shadow: 0 2px 8px rgba(15, 33, 56, 0.25);
+        cursor: pointer;
+      }
+
+      .angle-slider::-moz-range-thumb {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: #FFFFFF;
+        border: 3px solid var(--accent-primary);
+        box-shadow: 0 2px 8px rgba(15, 33, 56, 0.25);
+        cursor: pointer;
+      }
+
+      .preset-row {
+        margin-top: 12px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+
+      /* Toggle Switch */
+      .switch {
+        position: relative;
+        display: inline-block;
+        width: 48px;
+        height: 28px;
+        flex-shrink: 0;
+      }
+
+      .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .switch-slider {
+        position: absolute;
+        inset: 0;
+        border-radius: 999px;
+        background: var(--border-strong);
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+      }
+
+      .switch-slider::before {
+        content: "";
+        position: absolute;
+        width: 22px;
+        height: 22px;
+        left: 3px;
+        top: 3px;
+        border-radius: 50%;
+        background: #FFFFFF;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+        transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .switch input:checked + .switch-slider {
+        background: var(--accent-primary);
+      }
+
+      .switch input:checked + .switch-slider::before {
+        transform: translateX(20px);
+      }
+
+      /* Score & Stats Card */
+      .score-hero {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding-bottom: 18px;
+        border-bottom: 1px solid var(--border-hairline);
+      }
+
+      .score-ring-wrap {
+        position: relative;
+        width: 104px;
+        height: 104px;
+        flex-shrink: 0;
+      }
+
+      .score-ring-svg {
+        width: 100%;
+        height: 100%;
+        transform: rotate(-90deg);
+      }
+
+      .score-ring-center {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .score-num {
+        font-size: 28px;
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: -0.03em;
+        color: var(--text-primary);
+      }
+
+      .score-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted);
+        margin-top: 3px;
+      }
+
+      .score-summary {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .score-grade-title {
+        font-size: 16px;
+        font-weight: 700;
+        margin: 0 0 4px;
+        color: var(--text-primary);
+      }
+
+      .score-grade-desc {
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin: 0;
+        line-height: 1.45;
+      }
+
+      .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      .kpi-tile {
+        padding: 14px;
+        border-radius: var(--radius-inner);
+        background: var(--bg-canvas);
+        border: 1px solid var(--border-hairline);
+      }
+
+      .kpi-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 6px;
+      }
+
+      .kpi-value {
+        font-size: 19px;
+        font-weight: 800;
+        color: var(--text-primary);
+        letter-spacing: -0.02em;
+      }
+
+      .kpi-sub {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 4px;
+      }
+
+      /* Bar Chart */
+      .chart-area {
+        margin-top: 8px;
+      }
+
+      .bar-chart {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        align-items: end;
+        height: 136px;
+        padding: 12px 8px 0;
+      }
+
+      .bar-col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        height: 100%;
+        justify-content: flex-end;
+        gap: 6px;
+      }
+
+      .bar-pct {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text-secondary);
+        min-height: 16px;
+      }
+
+      .bar-track {
+        width: 100%;
+        max-width: 44px;
+        height: 82px;
+        border-radius: 10px;
+        background: var(--bg-subtle);
+        display: flex;
+        align-items: flex-end;
+        overflow: hidden;
+      }
+
+      .bar-fill {
+        width: 100%;
+        border-radius: 10px 10px 4px 4px;
+        background: linear-gradient(180deg, var(--accent-cyan), var(--accent-primary));
+        transition: height 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .bar-fill.empty {
+        height: 0% !important;
+      }
+
+      .bar-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted);
+        white-space: nowrap;
+      }
+
+      .stats-footer {
+        margin-top: 18px;
+        padding-top: 14px;
+        border-top: 1px solid var(--border-hairline);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .stats-date-text {
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      /* Mobile Fixed Thumb CTA Bar */
+      .mobile-bottom-bar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 40;
+        background: var(--bg-elevated);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-top: 1px solid var(--border-hairline);
+        padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+        display: grid;
+        grid-template-columns: 1.25fr 1fr;
+        gap: 10px;
+      }
+
+      @media (min-width: 920px) {
+        .mobile-bottom-bar {
+          display: none;
+        }
+      }
+
+      /* Modal / Drawer */
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 80;
+        background: rgba(8, 19, 36, 0.55);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        display: none;
+        align-items: flex-end;
+        justify-content: center;
+        padding: 0;
+      }
+
+      .modal-backdrop.open {
+        display: flex;
+      }
+
+      @media (min-width: 640px) {
+        .modal-backdrop {
+          align-items: center;
+          padding: 20px;
+        }
+      }
+
+      .modal-sheet {
+        width: 100%;
+        max-width: 460px;
+        max-height: 88vh;
+        overflow-y: auto;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-hairline);
+        border-radius: 24px 24px 0 0;
+        padding: 20px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+        box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.22);
+      }
+
+      @media (min-width: 640px) {
+        .modal-sheet {
+          border-radius: 24px;
+          padding: 24px;
+        }
+      }
+
+      .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 18px;
+      }
+
+      .modal-title {
+        font-size: 17px;
+        font-weight: 700;
+        margin: 0;
+      }
+
+      .setting-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 14px 0;
+        border-bottom: 1px solid var(--border-hairline);
+      }
+
+      .setting-row:last-child {
+        border-bottom: none;
+      }
+
+      .setting-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .setting-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+
+      .setting-help {
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      .segmented-group {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+        padding: 4px;
+        border-radius: 12px;
+        background: var(--bg-subtle);
+        margin-top: 10px;
+      }
+
+      .seg-btn {
+        min-height: 36px;
+        border: none;
+        border-radius: 9px;
+        background: transparent;
+        color: var(--text-secondary);
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.15s ease, color 0.15s ease;
+      }
+
+      .seg-btn.active {
+        background: var(--bg-surface);
+        color: var(--accent-primary);
+        box-shadow: 0 2px 6px rgba(15, 45, 90, 0.08);
+      }
+
+      .modal-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 20px;
+      }
+    </style>
+  <script src="/_aistudio-iframe.js?v=29045eb3"></script></head>
+  <body class="">
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="header-inner">
+        <div class="brand-lockup">
+          <div class="brand-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="7" y="2" width="10" height="20" rx="2.5"></rect>
+              <path d="M12 18h.01"></path>
+            </svg>
+          </div>
+          <h1 class="brand-title">거북목 교정 기기</h1>
+        </div>
+
+        <div class="header-actions">
+          <span id="sensorStatusBadge" class="sensor-status active" role="status" aria-live="polite">
+            <span id="sensorStatusText">중력 센서 활성</span>
+          </span>
+          <button type="button" id="openSettingsBtn" class="icon-btn" aria-label="알림 및 센서 설정 열기">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="app-main">
+      <!-- Permission / Environment Guidance Banner -->
+      <div id="sensorNoticeBanner" class="notice-banner" role="alert">
+        <div class="notice-content">
+          <div class="notice-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+          </div>
+          <div>
+            <p id="noticeTitle" class="notice-title">센서 안내</p>
+            <p id="noticeDesc" class="notice-desc"></p>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <a id="noticeNewTabBtn" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm" style="display:none;text-decoration:none;box-shadow:none;">새 탭에서 열기</a>
+          <button type="button" id="noticeActionBtn" class="btn btn-secondary btn-sm">가상 각도 슬라이더 켜기</button>
+        </div>
+      </div>
+
+      <div class="dashboard-grid">
+        <!-- Left Column: Live Angle Monitor & Controls -->
+        <div class="column-stack">
+          <section id="monitorCard" class="card" aria-label="실시간 각도 모니터링">
+            <div class="card-header">
+              <h2 class="card-title">실시간 기울기 게이지</h2>
+              <span id="thresholdLabel" class="card-subtitle tabular-nums">기준 50° (±15°)</span>
+            </div>
+
+            <div class="gauge-stage">
+              <!-- Semi-Circular Arc Gauge + Live Phone Indicator -->
+              <div class="gauge-svg-wrap">
+                <svg class="gauge-svg" viewBox="0 0 260 155" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="goodArcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stop-color="#0EA5E9"></stop>
+                      <stop offset="100%" stop-color="#059669"></stop>
+                    </linearGradient>
+                  </defs>
+                  <!-- Background Track (0 to 120 deg mapped across 180 deg semicircle) -->
+                  <path d="M 24 135 A 106 106 0 0 1 236 135" fill="none" stroke="var(--bg-subtle)" stroke-width="18" stroke-linecap="round"></path>
+
+                  <!-- Zone arcs rendered dynamically via JS for exact baseline calibration -->
+                  <path id="arcDanger" fill="none" stroke="#FB7185" stroke-opacity="0.45" stroke-width="18" stroke-linecap="butt" d="M 24.00 135.00 A 106 106 0 0 1 65.47 50.90"></path>
+                  <path id="arcWarning" fill="none" stroke="#FBBF24" stroke-opacity="0.5" stroke-width="18" stroke-linecap="butt" d="M 65.47 50.90 A 106 106 0 0 1 89.44 37.07"></path>
+                  <path id="arcGood" fill="none" stroke="url(#goodArcGrad)" stroke-opacity="0.85" stroke-width="18" stroke-linecap="butt" d="M 89.44 37.07 A 106 106 0 0 1 143.84 29.91"></path>
+
+                  <!-- Tick Labels -->
+                  <text x="14" y="150" font-size="10" font-weight="600" fill="var(--text-muted)">0°</text>
+                  <text x="64" y="42" font-size="10" font-weight="600" fill="var(--text-muted)">40°</text>
+                  <text x="122" y="18" font-size="10" font-weight="600" fill="var(--text-muted)">60°</text>
+                  <text x="206" y="55" font-size="10" font-weight="600" fill="var(--text-muted)">100°</text>
+                  <text x="234" y="150" font-size="10" font-weight="600" fill="var(--text-muted)">120°</text>
+
+                  <!-- Baseline Marker -->
+                  <circle id="baselineMarker" cx="102.57" cy="32.61" r="5" fill="#FFFFFF" stroke="var(--accent-primary)" stroke-width="2.5" style="display: block;"></circle>
+
+                  <!-- Rotating Phone Silhouette in Center -->
+                  <g id="gaugePhoneGroup" transform="translate(130, 125)">
+                    <!-- Desk / Horizontal Reference Line -->
+                    <line x1="-42" y1="10" x2="42" y2="10" stroke="var(--border-strong)" stroke-width="2" stroke-linecap="round"></line>
+                    <!-- Live Phone Angle Body -->
+                    <g id="phoneTiltArm" transform="rotate(35.0)">
+                      <rect x="-8" y="-56" width="16" height="54" rx="4" fill="var(--accent-primary)"></rect>
+                      <rect x="-5" y="-50" width="10" height="38" rx="2" fill="#FFFFFF" opacity="0.92"></rect>
+                      <circle cx="0" cy="-6" r="1.5" fill="#FFFFFF" opacity="0.85"></circle>
+                    </g>
+                  </g>
+
+                  <!-- Active Needle Indicator Dot on Arc -->
+                  <circle id="angleDot" cx="69.96" cy="47.64" r="8" fill="var(--warn-color)" stroke="#FFFFFF" stroke-width="3"></circle>
+                </svg>
+              </div>
+
+              <!-- Big Angle Readout -->
+              <div class="angle-readout-block">
+                <div class="angle-value-row tabular-nums">
+                  <span id="angleDisplay" class="angle-value">37</span>
+                  <span class="angle-unit">°</span>
+                </div>
+
+                <div id="postureStatusBar" class="posture-state-bar warning">
+                  <span id="postureStatusIcon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span>
+                  <span id="postureStatusText">주의 단계 · 고개 숙임</span>
+                </div>
+
+                <div class="angle-meta-line tabular-nums">
+                  <span id="baselineInfoText">맞춤 기준 50° (45°~65°)</span>
+                  <span aria-hidden="true">·</span>
+                  <span id="deviationText">편차 -13°</span>
+                </div>
+              </div>
+
+              <!-- Danger Countdown Strip -->
+              <div id="countdownStrip" class="countdown-alert-strip" role="alert">
+                <span id="countdownMessage">거북목 위험 감지 · 고개를 들어주세요</span>
+                <span id="countdownTimer" class="countdown-badge tabular-nums">2.4초 후 알림</span>
+              </div>
+            </div>
+
+            <!-- Live Neck & Posture Diagram -->
+            <div class="posture-visual-strip">
+              <svg class="posture-figure-svg" viewBox="0 0 80 80" aria-hidden="true">
+                <!-- Torso -->
+                <path d="M22 74 C22 54, 42 52, 46 74" fill="var(--bg-subtle)" stroke="var(--border-strong)" stroke-width="2"></path>
+                <!-- Dynamic Neck & Head Group -->
+                <g id="neckHeadGroup" transform="translate(32, 54) rotate(21.0)">
+                  <line x1="0" y1="0" x2="0" y2="-16" stroke="var(--accent-primary)" stroke-width="6" stroke-linecap="round"></line>
+                  <circle cx="2" cy="-26" r="11" fill="var(--bg-surface)" stroke="var(--accent-primary)" stroke-width="2.5"></circle>
+                  <path d="M8 -28 L13 -26 L9 -23" fill="none" stroke="var(--accent-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                </g>
+                <!-- Hand & Phone -->
+                <g id="diagramPhoneGroup" transform="translate(60, 44) rotate(24.5)">
+                  <rect x="-3" y="-14" width="6" height="22" rx="2" fill="var(--text-primary)"></rect>
+                </g>
+              </svg>
+              <div class="posture-guide-text">
+                <p id="guideTitle" class="posture-guide-title">시선이 조금 낮아지고 있습니다</p>
+                <p id="guideDesc" class="posture-guide-desc">팔꿈치를 살짝 들어 스마트폰 화면을 눈높이 가까이로 올려주세요.</p>
+              </div>
+            </div>
+
+            <!-- Desktop Primary CTAs -->
+            <div class="desktop-cta-row">
+              <button type="button" id="desktopStartBtn" class="btn btn-primary paused-state"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"></rect><rect x="14" y="4" width="4" height="16" rx="1"></rect></svg><span>일시정지</span></button>
+              <button type="button" id="desktopCalibrateBtn" class="btn btn-secondary">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9"></circle>
+                  <line x1="12" y1="3" x2="12" y2="7"></line>
+                  <line x1="12" y1="17" x2="12" y2="21"></line>
+                  <line x1="3" y1="12" x2="7" y2="12"></line>
+                  <line x1="17" y1="12" x2="21" y2="12"></line>
+                </svg>
+                <span>현재 자세 기준 맞추기</span>
+              </button>
+            </div>
+
+            <!-- Desktop / Test Virtual Angle Slider -->
+            <div class="virtual-panel">
+              <div class="virtual-header">
+                <div class="virtual-label-group">
+                  <span class="virtual-title">데스크톱 / 테스트용 가상 각도 조절</span>
+                  <span class="virtual-desc">센서가 없는 PC나 테스트 환경에서 각도를 직접 조절합니다</span>
+                </div>
+                <label class="switch" aria-label="가상 각도 테스트 모드 토글">
+                  <input type="checkbox" id="virtualModeToggle">
+                  <span class="switch-slider"></span>
+                </label>
+              </div>
+
+              <div id="virtualControls" class="virtual-controls">
+                <div class="slider-row">
+                  <span style="font-size:12px;font-weight:700;color:var(--text-muted);" class="tabular-nums">0°</span>
+                  <input type="range" id="virtualAngleSlider" class="angle-slider" min="0" max="120" step="1" value="75" aria-label="가상 스마트폰 각도 조절 슬라이더">
+                  <span style="font-size:12px;font-weight:700;color:var(--text-muted);" class="tabular-nums">120°</span>
+                </div>
+                <div class="preset-row">
+                  <button type="button" class="btn btn-secondary btn-sm preset-angle-btn" data-angle="25">25° 거북목</button>
+                  <button type="button" class="btn btn-secondary btn-sm preset-angle-btn" data-angle="50">50° 주의</button>
+                  <button type="button" class="btn btn-secondary btn-sm preset-angle-btn" data-angle="78">78° 바른 자세</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- Right Column: Daily Posture Score & Analytics -->
+        <div class="column-stack">
+          <section class="card" aria-label="오늘의 자세 통계">
+            <div class="card-header">
+              <h2 class="card-title">오늘의 바른 자세 점수</h2>
+              <span id="todayDateLabel" class="card-subtitle tabular-nums">2026-11-23</span>
+            </div>
+
+            <div class="score-hero">
+              <div class="score-ring-wrap">
+                <svg class="score-ring-svg" viewBox="0 0 100 100" aria-hidden="true">
+                  <circle cx="50" cy="50" r="42" fill="none" stroke="var(--bg-subtle)" stroke-width="10"></circle>
+                  <circle id="scoreRingCircle" cx="50" cy="50" r="42" fill="none" stroke="var(--danger-color)" stroke-width="10" stroke-linecap="round" stroke-dasharray="263.89" stroke-dashoffset="142.50" style="transition: stroke-dashoffset 0.4s ease, stroke 0.3s ease;"></circle>
+                </svg>
+                <div class="score-ring-center">
+                  <span id="scoreValue" class="score-num tabular-nums">46</span>
+                  <span class="score-label">점</span>
+                </div>
+              </div>
+
+              <div class="score-summary">
+                <p id="scoreGradeTitle" class="score-grade-title">거북목 주의가 필요한 상태입니다</p>
+                <p id="scoreGradeDesc" class="score-grade-desc">목 스트레칭과 함께 현재 자세 기준을 다시 맞추고 알림을 활용해보세요.</p>
+              </div>
+            </div>
+
+            <div class="kpi-grid">
+              <div class="kpi-tile">
+                <div class="kpi-label">바른 자세 누적 시간</div>
+                <div id="goodTimeValue" class="kpi-value tabular-nums">00시간 01분 41초</div>
+                <div id="totalTimeSub" class="kpi-sub tabular-nums">전체 측정 00시간 03분 01초</div>
+              </div>
+              <div class="kpi-tile">
+                <div class="kpi-label">거북목 경고 횟수</div>
+                <div id="warningCountValue" class="kpi-value tabular-nums">5회</div>
+                <div id="goodRatioSub" class="kpi-sub tabular-nums">바른 자세 비율 56%</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="card" aria-label="시간대별 자세 추이">
+            <div class="card-header">
+              <h2 class="card-title">시간대별 바른 자세 추이</h2>
+              <span class="card-subtitle">오늘 구간별 비율</span>
+            </div>
+
+            <div class="chart-area">
+              <div class="bar-chart">
+                <div class="bar-col">
+                  <span id="pct-dawn" class="bar-pct tabular-nums">-</span>
+                  <div class="bar-track"><div id="bar-dawn" class="bar-fill empty" style="height: 0%"></div></div>
+                  <span class="bar-label">새벽 00-06</span>
+                </div>
+                <div class="bar-col">
+                  <span id="pct-morning" class="bar-pct tabular-nums">56%</span>
+                  <div class="bar-track"><div id="bar-morning" class="bar-fill" style="height: 56%;"></div></div>
+                  <span class="bar-label">오전 06-12</span>
+                </div>
+                <div class="bar-col">
+                  <span id="pct-afternoon" class="bar-pct tabular-nums">-</span>
+                  <div class="bar-track"><div id="bar-afternoon" class="bar-fill empty" style="height: 0%"></div></div>
+                  <span class="bar-label">오후 12-18</span>
+                </div>
+                <div class="bar-col">
+                  <span id="pct-evening" class="bar-pct tabular-nums">-</span>
+                  <div class="bar-track"><div id="bar-evening" class="bar-fill empty" style="height: 0%"></div></div>
+                  <span class="bar-label">저녁 18-24</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="stats-footer">
+              <span class="stats-date-text">브라우저 localStorage 자동 저장</span>
+              <button type="button" id="openResetModalBtn" class="btn btn-danger-outline btn-sm">오늘 데이터 초기화</button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <!-- Mobile Sticky Bottom Thumb Bar -->
+    <div class="mobile-bottom-bar" role="region" aria-label="핵심 조작 버튼">
+      <button type="button" id="mobileStartBtn" class="btn btn-primary paused-state"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"></rect><rect x="14" y="4" width="4" height="16" rx="1"></rect></svg><span>일시정지</span></button>
+      <button type="button" id="mobileCalibrateBtn" class="btn btn-secondary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"></circle>
+          <line x1="12" y1="3" x2="12" y2="7"></line>
+          <line x1="12" y1="17" x2="12" y2="21"></line>
+          <line x1="3" y1="12" x2="7" y2="12"></line>
+          <line x1="17" y1="12" x2="21" y2="12"></line>
+        </svg>
+        <span>기준 맞추기</span>
+      </button>
+    </div>
+
+    <!-- Settings Modal / Drawer -->
+    <div id="settingsModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h2 id="settingsModalTitle" class="modal-title">알림 및 교정 설정</h2>
+          <button type="button" id="closeSettingsBtn" class="icon-btn" aria-label="설정 닫기">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
+        <div class="setting-row" style="flex-direction: column; align-items: stretch; gap: 4px;">
+          <div class="setting-text">
+            <span class="setting-name">거북목 경고 지연 시간</span>
+            <span class="setting-help">위험 각도가 아래 시간 동안 지속될 때 알람을 울립니다</span>
+          </div>
+          <div class="segmented-group" role="group" aria-label="경고 지연 시간 선택">
+            <button type="button" class="seg-btn delay-option" data-delay="1">1초</button>
+            <button type="button" class="seg-btn delay-option active" data-delay="3">3초</button>
+            <button type="button" class="seg-btn delay-option" data-delay="5">5초</button>
+            <button type="button" class="seg-btn delay-option" data-delay="10">10초</button>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-text">
+            <span class="setting-name">경고음 (Web Audio)</span>
+            <span class="setting-help">듀얼 톤(880Hz·660Hz) 알림음을 재생합니다</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <button type="button" id="testSoundBtn" class="btn btn-secondary btn-sm">미리듣기</button>
+            <label class="switch" aria-label="경고음 사용 여부">
+              <input type="checkbox" id="soundToggle">
+              <span class="switch-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-text">
+            <span class="setting-name">모바일 진동 알림</span>
+            <span class="setting-help">지원 기기에서 300ms 진동 패턴을 실행합니다</span>
+          </div>
+          <label class="switch" aria-label="진동 알림 사용 여부">
+            <input type="checkbox" id="vibrateToggle">
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-text">
+            <span class="setting-name">딥 네이비 다크 모드</span>
+            <span class="setting-help">어두운 환경에서 눈의 피로를 줄여줍니다</span>
+          </div>
+          <label class="switch" aria-label="다크 모드 사용 여부">
+            <input type="checkbox" id="darkModeToggle">
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-row" style="flex-direction: column; align-items: stretch; gap: 4px;">
+          <div class="setting-text">
+            <span class="setting-name">기울기 센서 방식</span>
+            <span id="sensorDiagText" class="setting-help">활성: GravitySensor (방향 0° / 중력 38°)</span>
+          </div>
+          <div class="segmented-group" style="grid-template-columns: repeat(3, 1fr);" role="group" aria-label="기울기 센서 방식 선택">
+            <button type="button" class="seg-btn sensor-mode-option active" data-mode="auto">자동(권장)</button>
+            <button type="button" class="seg-btn sensor-mode-option" data-mode="orientation">방향(Beta)</button>
+            <button type="button" class="seg-btn sensor-mode-option" data-mode="motion">중력(Motion)</button>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-text">
+            <span class="setting-name">기준 각도 복원</span>
+            <span id="settingsBaselineDesc" class="setting-help">맞춤 기준 50° 적용 중</span>
+          </div>
+          <button type="button" id="resetBaselineBtn" class="btn btn-secondary btn-sm" style="opacity: 1;">기본값 복원</button>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-text">
+            <span class="setting-name">단일 HTML 파일 저장</span>
+            <span class="setting-help">별도 설치 없이 Chrome에서 여는 단독 HTML 파일을 받습니다</span>
+          </div>
+          <button type="button" id="downloadHtmlBtn" class="btn btn-secondary btn-sm">HTML 저장</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reset Data Confirmation Modal -->
+    <div id="resetModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="resetModalTitle">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h2 id="resetModalTitle" class="modal-title">오늘 기록 초기화</h2>
+          <button type="button" id="closeResetBtn" class="icon-btn" aria-label="닫기">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <p style="margin:0; font-size:14px; color:var(--text-secondary); line-height:1.55;">
+          오늘 측정된 바른 자세 누적 시간, 거북목 경고 횟수, 시간대별 추이 그래프가 모두 초기화됩니다. 계속하시겠습니까?
+        </p>
+        <div class="modal-actions">
+          <button type="button" id="cancelResetBtn" class="btn btn-secondary">취소</button>
+          <button type="button" id="confirmResetBtn" class="btn btn-primary" style="background: var(--danger-color); box-shadow: none;">초기화 실행</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        'use strict';
+
+        // Storage Keys
+        var STATS_KEY = 'tnc_daily_stats_v1';
+        var SETTINGS_KEY = 'tnc_settings_v1';
+
+        function getTodayKey() {
+          var now = new Date();
+          var y = now.getFullYear();
+          var m = String(now.getMonth() + 1).padStart(2, '0');
+          var d = String(now.getDate()).padStart(2, '0');
+          return y + '-' + m + '-' + d;
+        }
+
+        function createEmptyStats() {
+          return {
+            date: getTodayKey(),
+            goodSeconds: 0,
+            totalSeconds: 0,
+            warningCount: 0,
+            buckets: {
+              dawn: { good: 0, total: 0 },
+              morning: { good: 0, total: 0 },
+              afternoon: { good: 0, total: 0 },
+              evening: { good: 0, total: 0 }
+            }
+          };
+        }
+
+        function loadStats() {
+          try {
+            var raw = localStorage.getItem(STATS_KEY);
+            if (!raw) return createEmptyStats();
+            var parsed = JSON.parse(raw);
+            if (!parsed || parsed.date !== getTodayKey()) {
+              return createEmptyStats();
+            }
+            var base = createEmptyStats();
+            base.goodSeconds = Number(parsed.goodSeconds) || 0;
+            base.totalSeconds = Number(parsed.totalSeconds) || 0;
+            base.warningCount = Number(parsed.warningCount) || 0;
+            if (parsed.buckets) {
+              ['dawn', 'morning', 'afternoon', 'evening'].forEach(function (k) {
+                if (parsed.buckets[k]) {
+                  base.buckets[k].good = Number(parsed.buckets[k].good) || 0;
+                  base.buckets[k].total = Number(parsed.buckets[k].total) || 0;
+                }
+              });
+            }
+            return base;
+          } catch (e) {
+            return createEmptyStats();
+          }
+        }
+
+        function saveStats() {
+          try {
+            localStorage.setItem(STATS_KEY, JSON.stringify(stats));
+          } catch (e) {
+            // Ignore storage quota errors cleanly
+          }
+        }
+
+        function loadSettings() {
+          var defaults = {
+            alertDelay: 3,
+            soundEnabled: true,
+            vibrateEnabled: true,
+            darkMode: false,
+            baselineAngle: null,
+            virtualMode: false,
+            virtualAngle: 75,
+            sensorMode: 'auto'
+          };
+          try {
+            var raw = localStorage.getItem(SETTINGS_KEY);
+            if (!raw) return defaults;
+            var parsed = JSON.parse(raw);
+            return {
+              alertDelay: [1, 3, 5, 10].indexOf(Number(parsed.alertDelay)) >= 0 ? Number(parsed.alertDelay) : 3,
+              soundEnabled: typeof parsed.soundEnabled === 'boolean' ? parsed.soundEnabled : true,
+              vibrateEnabled: typeof parsed.vibrateEnabled === 'boolean' ? parsed.vibrateEnabled : true,
+              darkMode: Boolean(parsed.darkMode),
+              baselineAngle: typeof parsed.baselineAngle === 'number' && !isNaN(parsed.baselineAngle) ? parsed.baselineAngle : null,
+              virtualMode: Boolean(parsed.virtualMode),
+              virtualAngle: typeof parsed.virtualAngle === 'number' ? Math.max(0, Math.min(120, parsed.virtualAngle)) : 75,
+              sensorMode: ['auto', 'orientation', 'motion'].indexOf(parsed.sensorMode) >= 0 ? parsed.sensorMode : 'auto'
+            };
+          } catch (e) {
+            return defaults;
+          }
+        }
+
+        function saveSettings() {
+          try {
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+          } catch (e) {}
+        }
+
+        // Application State
+        var stats = loadStats();
+        var settings = loadSettings();
+
+        var isMonitoring = false;
+        var sensorBound = false;
+        var orientationReceived = false;
+        var gravitySensorActive = false;
+        var hardwareReceived = false;
+        var sensorSource = ''; // 'gravity' | 'orientation' | 'orientation-abs' | 'motion'
+        var permissionDenied = false;
+        var currentAngle = settings.virtualMode ? settings.virtualAngle : 75;
+        var smoothedBeta = null;
+        var currentStatus = 'idle'; // 'idle' | 'good' | 'warning' | 'danger'
+
+        // Gravity & Drift-Protection State
+        var lpfGx = null;
+        var lpfGy = null;
+        var lpfGz = null;
+        var latestGravityPitch = null;
+        var latestGravityMag = null;
+        var latestOrientationBeta = null;
+        var driftMismatchStart = null;
+        var autoSwitchedToMotion = false;
+        var noGravitySamples = 0;
+        var gravitySensorInstance = null;
+
+        var tickInterval = null;
+        var sensorFallbackTimer = null;
+        var lastTickTime = 0;
+        var secondAccumulatorMs = 0;
+        var dangerStartTime = null;
+        var isAlarmActive = false;
+        var lastFeedbackTime = 0;
+        var audioCtx = null;
+
+        // DOM Elements
+        var monitorCard = document.getElementById('monitorCard');
+        var sensorStatusBadge = document.getElementById('sensorStatusBadge');
+        var sensorStatusText = document.getElementById('sensorStatusText');
+        var sensorNoticeBanner = document.getElementById('sensorNoticeBanner');
+        var noticeTitle = document.getElementById('noticeTitle');
+        var noticeDesc = document.getElementById('noticeDesc');
+        var noticeNewTabBtn = document.getElementById('noticeNewTabBtn');
+        var noticeActionBtn = document.getElementById('noticeActionBtn');
+
+        var thresholdLabel = document.getElementById('thresholdLabel');
+        var arcDanger = document.getElementById('arcDanger');
+        var arcWarning = document.getElementById('arcWarning');
+        var arcGood = document.getElementById('arcGood');
+        var baselineMarker = document.getElementById('baselineMarker');
+        var angleDot = document.getElementById('angleDot');
+        var phoneTiltArm = document.getElementById('phoneTiltArm');
+
+        var angleDisplay = document.getElementById('angleDisplay');
+        var postureStatusBar = document.getElementById('postureStatusBar');
+        var postureStatusIcon = document.getElementById('postureStatusIcon');
+        var postureStatusText = document.getElementById('postureStatusText');
+        var baselineInfoText = document.getElementById('baselineInfoText');
+        var deviationText = document.getElementById('deviationText');
+
+        var countdownStrip = document.getElementById('countdownStrip');
+        var countdownMessage = document.getElementById('countdownMessage');
+        var countdownTimer = document.getElementById('countdownTimer');
+
+        var neckHeadGroup = document.getElementById('neckHeadGroup');
+        var diagramPhoneGroup = document.getElementById('diagramPhoneGroup');
+        var guideTitle = document.getElementById('guideTitle');
+        var guideDesc = document.getElementById('guideDesc');
+
+        var desktopStartBtn = document.getElementById('desktopStartBtn');
+        var mobileStartBtn = document.getElementById('mobileStartBtn');
+        var desktopCalibrateBtn = document.getElementById('desktopCalibrateBtn');
+        var mobileCalibrateBtn = document.getElementById('mobileCalibrateBtn');
+
+        var virtualModeToggle = document.getElementById('virtualModeToggle');
+        var virtualControls = document.getElementById('virtualControls');
+        var virtualAngleSlider = document.getElementById('virtualAngleSlider');
+        var presetAngleBtns = document.querySelectorAll('.preset-angle-btn');
+
+        var todayDateLabel = document.getElementById('todayDateLabel');
+        var scoreRingCircle = document.getElementById('scoreRingCircle');
+        var scoreValue = document.getElementById('scoreValue');
+        var scoreGradeTitle = document.getElementById('scoreGradeTitle');
+        var scoreGradeDesc = document.getElementById('scoreGradeDesc');
+        var goodTimeValue = document.getElementById('goodTimeValue');
+        var totalTimeSub = document.getElementById('totalTimeSub');
+        var warningCountValue = document.getElementById('warningCountValue');
+        var goodRatioSub = document.getElementById('goodRatioSub');
+
+        var settingsModal = document.getElementById('settingsModal');
+        var openSettingsBtn = document.getElementById('openSettingsBtn');
+        var closeSettingsBtn = document.getElementById('closeSettingsBtn');
+        var delayOptionBtns = document.querySelectorAll('.delay-option');
+        var sensorModeOptionBtns = document.querySelectorAll('.sensor-mode-option');
+        var sensorDiagText = document.getElementById('sensorDiagText');
+        var soundToggle = document.getElementById('soundToggle');
+        var testSoundBtn = document.getElementById('testSoundBtn');
+        var vibrateToggle = document.getElementById('vibrateToggle');
+        var darkModeToggle = document.getElementById('darkModeToggle');
+        var settingsBaselineDesc = document.getElementById('settingsBaselineDesc');
+        var resetBaselineBtn = document.getElementById('resetBaselineBtn');
+        var downloadHtmlBtn = document.getElementById('downloadHtmlBtn');
+
+        var resetModal = document.getElementById('resetModal');
+        var openResetModalBtn = document.getElementById('openResetModalBtn');
+        var closeResetBtn = document.getElementById('closeResetBtn');
+        var cancelResetBtn = document.getElementById('cancelResetBtn');
+        var confirmResetBtn = document.getElementById('confirmResetBtn');
+        var themeColorMeta = document.getElementById('themeColorMeta');
+
+        // Web Audio API (Dual-tone 880Hz + 660Hz chime without external files)
+        function ensureAudioUnlocked() {
+          try {
+            var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContextClass) return;
+            if (!audioCtx) {
+              audioCtx = new AudioContextClass();
+            }
+            if (audioCtx.state === 'suspended') {
+              audioCtx.resume();
+            }
+            // Play silent 1ms buffer to unlock iOS Safari audio pipeline inside user gesture
+            var buffer = audioCtx.createBuffer(1, 1, 22050);
+            var source = audioCtx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(audioCtx.destination);
+            source.start(0);
+          } catch (e) {}
+        }
+
+        function playAlertTone() {
+          try {
+            var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContextClass) return;
+            if (!audioCtx) {
+              audioCtx = new AudioContextClass();
+            }
+            if (audioCtx.state === 'suspended') {
+              audioCtx.resume();
+            }
+            var now = audioCtx.currentTime;
+
+            function playNote(freq, startOffset, duration) {
+              var osc = audioCtx.createOscillator();
+              var gain = audioCtx.createGain();
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(freq, now + startOffset);
+              gain.gain.setValueAtTime(0.0001, now + startOffset);
+              gain.gain.exponentialRampToValueAtTime(0.16, now + startOffset + 0.02);
+              gain.gain.exponentialRampToValueAtTime(0.0001, now + startOffset + duration);
+              osc.connect(gain);
+              gain.connect(audioCtx.destination);
+              osc.start(now + startOffset);
+              osc.stop(now + startOffset + duration + 0.02);
+            }
+
+            // Crisp dual-tone alert (880Hz then 660Hz harmonic pair)
+            playNote(880, 0, 0.18);
+            playNote(660, 0.19, 0.24);
+          } catch (e) {}
+        }
+
+        function triggerFeedbackPulse() {
+          if (settings.soundEnabled) {
+            playAlertTone();
+          }
+          if (settings.vibrateEnabled && typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+            try {
+              navigator.vibrate([300, 150, 300]);
+            } catch (e) {}
+          }
+        }
+
+        function stopFeedback() {
+          isAlarmActive = false;
+          document.body.classList.remove('alarm-active');
+          if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+            try {
+              navigator.vibrate(0);
+            } catch (e) {}
+          }
+        }
+
+        // Posture Threshold Calculation
+        function getThresholds() {
+          if (settings.baselineAngle !== null) {
+            var base = settings.baselineAngle;
+            var goodMin = Math.max(45, Math.round(base - 15));
+            var goodMax = Math.min(115, Math.round(base + 15));
+            var warnMin = Math.max(35, Math.round(base - 30));
+            return {
+              goodMin: goodMin,
+              goodMax: goodMax,
+              warnMin: Math.min(warnMin, goodMin - 1),
+              reference: Math.round(base),
+              isCustom: true
+            };
+          }
+          return {
+            goodMin: 60,
+            goodMax: 100,
+            warnMin: 40,
+            reference: 80,
+            isCustom: false
+          };
+        }
+
+        function evaluatePosture(angle) {
+          var t = getThresholds();
+          if (angle >= t.goodMin && angle <= t.goodMax) {
+            return 'good';
+          }
+          if ((angle >= t.warnMin && angle < t.goodMin) || angle > t.goodMax) {
+            return 'warning';
+          }
+          return 'danger';
+        }
+
+        // SVG Semicircle Geometry Helpers (0° -> 120° mapped onto 180° left-to-right arc)
+        function angleToPoint(deg, radius) {
+          var clamped = Math.max(0, Math.min(120, deg));
+          // 0 deg = left (PI), 120 deg = right (0)
+          var rad = Math.PI * (1 - clamped / 120);
+          return {
+            x: 130 + radius * Math.cos(rad),
+            y: 135 - radius * Math.sin(rad)
+          };
+        }
+
+        function describeArc(startDeg, endDeg, radius) {
+          var s = Math.max(0, Math.min(120, startDeg));
+          var e = Math.max(0, Math.min(120, endDeg));
+          if (e <= s) return '';
+          var p1 = angleToPoint(s, radius);
+          var p2 = angleToPoint(e, radius);
+          return 'M ' + p1.x.toFixed(2) + ' ' + p1.y.toFixed(2) + ' A ' + radius + ' ' + radius + ' 0 0 1 ' + p2.x.toFixed(2) + ' ' + p2.y.toFixed(2);
+        }
+
+        function renderGaugeArcs() {
+          var t = getThresholds();
+          arcDanger.setAttribute('d', describeArc(0, t.warnMin, 106));
+          arcWarning.setAttribute('d', describeArc(t.warnMin, t.goodMin, 106));
+          arcGood.setAttribute('d', describeArc(t.goodMin, t.goodMax, 106));
+
+          if (t.isCustom) {
+            var bp = angleToPoint(t.reference, 106);
+            baselineMarker.setAttribute('cx', bp.x.toFixed(2));
+            baselineMarker.setAttribute('cy', bp.y.toFixed(2));
+            baselineMarker.style.display = 'block';
+            thresholdLabel.textContent = '기준 ' + t.reference + '° (±15°)';
+          } else {
+            baselineMarker.style.display = 'none';
+            thresholdLabel.textContent = '안전 60°–100°';
+          }
+        }
+
+        function getStatusIconSvg(status) {
+          if (status === 'good') {
+            return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+          }
+          if (status === 'warning') {
+            return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
+          }
+          if (status === 'danger') {
+            return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
+          }
+          return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>';
+        }
+
+        function updateGaugeVisuals() {
+          var rounded = Math.round(currentAngle);
+          var t = getThresholds();
+          var evaluated = evaluatePosture(rounded);
+          currentStatus = isMonitoring ? evaluated : 'idle';
+
+          angleDisplay.textContent = String(rounded);
+
+          // Arc dot position
+          var dotPoint = angleToPoint(rounded, 106);
+          angleDot.setAttribute('cx', dotPoint.x.toFixed(2));
+          angleDot.setAttribute('cy', dotPoint.y.toFixed(2));
+
+          // Phone tilt animation (90 deg = upright 0 rotation; 0 deg = flat -90deg or +90deg)
+          var tiltDeg = Math.max(-85, Math.min(35, 90 - rounded));
+          phoneTiltArm.setAttribute('transform', 'rotate(' + tiltDeg.toFixed(1) + ')');
+          diagramPhoneGroup.setAttribute('transform', 'translate(60, 44) rotate(' + (tiltDeg * 0.7).toFixed(1) + ')');
+
+          // Neck flexion animation: lower phone angle -> forward head tilt
+          var neckTilt = rounded < 65 ? Math.min(44, (65 - rounded) * 0.75) : 4;
+          neckHeadGroup.setAttribute('transform', 'translate(32, 54) rotate(' + neckTilt.toFixed(1) + ')');
+
+          // Colors and Status Text
+          var dotColor = 'var(--accent-primary)';
+          postureStatusBar.className = 'posture-state-bar ' + currentStatus;
+          monitorCard.classList.toggle('danger-state', currentStatus === 'danger');
+
+          if (!isMonitoring) {
+            postureStatusIcon.innerHTML = getStatusIconSvg('idle');
+            postureStatusText.textContent = '측정 대기 중';
+            guideTitle.textContent = '측정을 시작할 준비가 되었습니다';
+            guideDesc.textContent = '측정 시작 버튼을 누르면 센서 권한을 확인하고 실시간 각도 모니터링이 시작됩니다.';
+          } else if (currentStatus === 'good') {
+            dotColor = 'var(--good-color)';
+            postureStatusIcon.innerHTML = getStatusIconSvg('good');
+            postureStatusText.textContent = '바른 자세 · 안정';
+            guideTitle.textContent = '경추 정렬이 바르게 유지되고 있습니다';
+            guideDesc.textContent = '현재 시선과 스마트폰 높이가 이상적입니다. 바른 자세 누적 시간이 기록 중입니다.';
+          } else if (currentStatus === 'warning') {
+            dotColor = 'var(--warn-color)';
+            postureStatusIcon.innerHTML = getStatusIconSvg('warning');
+            postureStatusText.textContent = '주의 단계 · 고개 숙임';
+            guideTitle.textContent = '시선이 조금 낮아지고 있습니다';
+            guideDesc.textContent = '팔꿈치를 살짝 들어 스마트폰 화면을 눈높이 가까이로 올려주세요.';
+          } else {
+            dotColor = 'var(--danger-color)';
+            postureStatusIcon.innerHTML = getStatusIconSvg('danger');
+            postureStatusText.textContent = '거북목 위험';
+            guideTitle.textContent = '목에 과도한 하중이 실리고 있습니다';
+            guideDesc.textContent = '턱을 당기고 스마트폰을 눈높이로 들어 올려 목의 부담을 줄여주세요.';
+          }
+          angleDot.setAttribute('fill', dotColor);
+
+          // Baseline & Deviation Meta
+          var diff = rounded - t.reference;
+          var diffSign = diff > 0 ? '+' : '';
+          deviationText.textContent = '편차 ' + diffSign + diff + '°';
+          if (t.isCustom) {
+            baselineInfoText.textContent = '맞춤 기준 ' + t.reference + '° (' + t.goodMin + '°~' + t.goodMax + '°)';
+          } else {
+            baselineInfoText.textContent = '기본 기준 · 60°~100°';
+          }
+        }
+
+        function formatDuration(sec) {
+          var s = Math.max(0, Math.floor(sec));
+          var h = Math.floor(s / 3600);
+          var m = Math.floor((s % 3600) / 60);
+          var rem = s % 60;
+          return String(h).padStart(2, '0') + '시간 ' + String(m).padStart(2, '0') + '분 ' + String(rem).padStart(2, '0') + '초';
+        }
+
+        function getCurrentBucketKey() {
+          var hour = new Date().getHours();
+          if (hour < 6) return 'dawn';
+          if (hour < 12) return 'morning';
+          if (hour < 18) return 'afternoon';
+          return 'evening';
+        }
+
+        function updateStatsUI() {
+          // Check date rollover automatically
+          if (stats.date !== getTodayKey()) {
+            stats = createEmptyStats();
+            saveStats();
+          }
+
+          todayDateLabel.textContent = stats.date;
+          goodTimeValue.textContent = formatDuration(stats.goodSeconds);
+          totalTimeSub.textContent = '전체 측정 ' + formatDuration(stats.totalSeconds);
+          warningCountValue.textContent = stats.warningCount + '회';
+
+          var ratio = stats.totalSeconds > 0 ? Math.round((stats.goodSeconds / stats.totalSeconds) * 100) : null;
+          goodRatioSub.textContent = ratio !== null ? '바른 자세 비율 ' + ratio + '%' : '바른 자세 비율 --%';
+
+          // Posture Score (0 ~ 100)
+          var score = 100;
+          if (stats.totalSeconds > 0) {
+            var rawRatio = (stats.goodSeconds / stats.totalSeconds) * 100;
+            var penalty = stats.warningCount * 2;
+            score = Math.max(0, Math.min(100, Math.round(rawRatio - penalty)));
+          }
+          scoreValue.textContent = String(score);
+
+          // SVG Ring circumference (r=42 => 2 * PI * 42 = 263.89)
+          var circ = 263.89;
+          var offset = circ * (1 - score / 100);
+          scoreRingCircle.setAttribute('stroke-dashoffset', offset.toFixed(2));
+
+          if (stats.totalSeconds === 0) {
+            scoreRingCircle.setAttribute('stroke', 'var(--accent-primary)');
+            scoreGradeTitle.textContent = '오늘의 자세 기록을 시작하세요';
+            scoreGradeDesc.textContent = '측정을 시작하면 바른 자세 비율과 경고 횟수가 실시간으로 점수에 반영됩니다.';
+          } else if (score >= 85) {
+            scoreRingCircle.setAttribute('stroke', 'var(--good-color)');
+            scoreGradeTitle.textContent = '아주 훌륭한 목 자세입니다';
+            scoreGradeDesc.textContent = '스마트폰을 눈높이에 가깝게 유지하며 경추 건강을 잘 지키고 있습니다.';
+          } else if (score >= 65) {
+            scoreRingCircle.setAttribute('stroke', 'var(--accent-primary)');
+            scoreGradeTitle.textContent = '양호하지만 조금 더 신경 써주세요';
+            scoreGradeDesc.textContent = '고개를 숙이는 순간이 간헐적으로 감지되었습니다. 화면 높이를 조금만 올려보세요.';
+          } else {
+            scoreRingCircle.setAttribute('stroke', 'var(--danger-color)');
+            scoreGradeTitle.textContent = '거북목 주의가 필요한 상태입니다';
+            scoreGradeDesc.textContent = '목 스트레칭과 함께 현재 자세 기준을 다시 맞추고 알림을 활용해보세요.';
+          }
+
+          // Time-of-day Bar Chart
+          ['dawn', 'morning', 'afternoon', 'evening'].forEach(function (key) {
+            var b = stats.buckets[key];
+            var barEl = document.getElementById('bar-' + key);
+            var pctEl = document.getElementById('pct-' + key);
+            if (b.total > 0) {
+              var pct = Math.round((b.good / b.total) * 100);
+              barEl.classList.remove('empty');
+              barEl.style.height = Math.max(8, pct) + '%';
+              pctEl.textContent = pct + '%';
+            } else {
+              barEl.classList.add('empty');
+              barEl.style.height = '0%';
+              pctEl.textContent = '-';
+            }
+          });
+        }
+
+        function updateHeaderAndButtons() {
+          // Sensor badge
+          sensorStatusBadge.className = 'sensor-status';
+          if (settings.virtualMode) {
+            sensorStatusBadge.classList.add('virtual');
+            sensorStatusText.textContent = isMonitoring ? '가상 테스트 활성' : '가상 모드 대기';
+          } else if (permissionDenied) {
+            sensorStatusBadge.classList.add('error');
+            sensorStatusText.textContent = '센서 권한 필요';
+          } else if (isMonitoring && hardwareReceived) {
+            sensorStatusBadge.classList.add('active');
+            if (sensorSource === 'gravity' || sensorSource === 'motion') {
+              sensorStatusText.textContent = '중력 센서 활성';
+            } else {
+              sensorStatusText.textContent = '방향 센서 활성';
+            }
+          } else if (isMonitoring) {
+            sensorStatusBadge.classList.add('active');
+            sensorStatusText.textContent = '센서 연결 중';
+          } else {
+            sensorStatusText.textContent = '대기 중';
+          }
+
+          // Start / Pause CTA buttons
+          var ctaHtml = isMonitoring
+            ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"></rect><rect x="14" y="4" width="4" height="16" rx="1"></rect></svg><span>일시정지</span>'
+            : '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg><span>측정 시작</span>';
+
+          desktopStartBtn.innerHTML = ctaHtml;
+          mobileStartBtn.innerHTML = ctaHtml;
+          desktopStartBtn.classList.toggle('paused-state', isMonitoring);
+          mobileStartBtn.classList.toggle('paused-state', isMonitoring);
+        }
+
+        function showNotice(type, title, desc, showVirtualBtn, showNewTabBtn) {
+          sensorNoticeBanner.className = 'notice-banner visible ' + type;
+          noticeTitle.textContent = title;
+          noticeDesc.textContent = desc;
+          noticeActionBtn.style.display = showVirtualBtn ? 'inline-flex' : 'none';
+          if (showNewTabBtn) {
+            noticeNewTabBtn.href = window.location.href;
+            noticeNewTabBtn.style.display = 'inline-flex';
+          } else {
+            noticeNewTabBtn.style.display = 'none';
+          }
+        }
+
+        function hideNotice() {
+          sensorNoticeBanner.className = 'notice-banner';
+          noticeNewTabBtn.style.display = 'none';
+        }
+
+        function updateSensorDiagnostics() {
+          if (!sensorDiagText) return;
+          var parts = [];
+          if (latestOrientationBeta !== null) {
+            parts.push('방향 ' + Math.round(latestOrientationBeta) + '°');
+          }
+          if (latestGravityPitch !== null) {
+            parts.push('중력 ' + Math.round(latestGravityPitch) + '°');
+          }
+          if (parts.length === 0) {
+            sensorDiagText.textContent = '자동 모드 · 방향/중력 센서 자동 보정';
+          } else {
+            var activeLabel = sensorSource === 'gravity' ? 'GravitySensor' : (sensorSource === 'motion' ? '중력 가속도' : '방향(Beta)');
+            sensorDiagText.textContent = '활성: ' + activeLabel + ' (' + parts.join(' / ') + ')';
+          }
+        }
+
+        function applySensorAngle(rawAngle, sourceName) {
+          if (settings.virtualMode) return;
+          var prevSource = sensorSource;
+          if (!hardwareReceived) {
+            hardwareReceived = true;
+            permissionDenied = false;
+            sensorSource = sourceName;
+            if (sensorFallbackTimer) {
+              clearTimeout(sensorFallbackTimer);
+              sensorFallbackTimer = null;
+            }
+            hideNotice();
+            updateHeaderAndButtons();
+          } else if (prevSource !== sourceName) {
+            sensorSource = sourceName;
+            updateHeaderAndButtons();
+          }
+
+          var raw = Math.max(0, Math.min(120, rawAngle));
+          if (smoothedBeta === null) {
+            smoothedBeta = raw;
+          } else {
+            smoothedBeta = smoothedBeta * 0.72 + raw * 0.28;
+          }
+          currentAngle = smoothedBeta;
+          updateGaugeVisuals();
+          updateSensorDiagnostics();
+        }
+
+        function computeGravityAngleFromVector(gx, gy, gz) {
+          var basePitch = Math.atan2(Math.abs(gy), Math.hypot(gx, gz)) * (180 / Math.PI);
+          return basePitch;
+        }
+
+        // Hardware Orientation Handler
+        function handleDeviceOrientation(event) {
+          if (settings.virtualMode) return;
+          if (event.beta === null || typeof event.beta !== 'number' || isNaN(event.beta)) {
+            return;
+          }
+          // Ignore bogus all-zero synthetic events if gravity sensor says phone is upright
+          if (event.alpha === 0 && event.beta === 0 && event.gamma === 0 && latestGravityPitch !== null && latestGravityPitch > 15) {
+            return;
+          }
+          orientationReceived = true;
+          latestOrientationBeta = event.beta;
+
+          if (settings.sensorMode === 'motion') return;
+          if (settings.sensorMode === 'auto') {
+            if (gravitySensorActive || autoSwitchedToMotion) return;
+
+            // Cross-check against steady gravity pitch to detect drifting/zeroing relative gyro
+            if (latestGravityPitch !== null && latestGravityMag !== null && latestGravityMag >= 8.5 && latestGravityMag <= 11.2) {
+              var clampedBeta = Math.max(0, Math.min(120, event.beta));
+              var diffDirect = Math.abs(clampedBeta - latestGravityPitch);
+              var diffMirror = Math.abs((180 - clampedBeta) - latestGravityPitch);
+              var minDiff = Math.min(diffDirect, diffMirror);
+              if (minDiff > 25) {
+                var now = performance.now();
+                if (driftMismatchStart === null) {
+                  driftMismatchStart = now;
+                } else if (now - driftMismatchStart > 1200) {
+                  autoSwitchedToMotion = true;
+                  applySensorAngle(latestGravityPitch, 'motion');
+                  return;
+                }
+              } else {
+                driftMismatchStart = null;
+              }
+            }
+          }
+
+          applySensorAngle(event.beta, 'orientation');
+        }
+
+        // Absolute Orientation Fallback
+        function handleDeviceOrientationAbsolute(event) {
+          if (settings.virtualMode || settings.sensorMode === 'motion') return;
+          if (orientationReceived) return;
+          if (event.beta === null || typeof event.beta !== 'number' || isNaN(event.beta)) {
+            return;
+          }
+          latestOrientationBeta = event.beta;
+          if (settings.sensorMode === 'auto' && (gravitySensorActive || autoSwitchedToMotion)) return;
+          applySensorAngle(event.beta, 'orientation-abs');
+        }
+
+        // Gravity-Verified Accelerometer Handler (Zero-drift static tilt!)
+        function handleDeviceMotion(event) {
+          if (settings.virtualMode || gravitySensorActive) return;
+          var acc = event.accelerationIncludingGravity;
+          if (!acc || acc.y === null || acc.z === null) return;
+          var ax = typeof acc.x === 'number' ? acc.x : 0;
+          var ay = typeof acc.y === 'number' ? acc.y : 0;
+          var az = typeof acc.z === 'number' ? acc.z : 0;
+
+          var mag = Math.hypot(ax, ay, az);
+          latestGravityMag = mag;
+
+          // Reject samples without real Earth gravity (~9.8 m/s^2) so holding still NEVER drops to 0 deg!
+          if (mag < 6.0 || mag > 14.5) {
+            noGravitySamples += 1;
+            if (noGravitySamples === 20 && !hardwareReceived && !orientationReceived && isMonitoring) {
+              showNotice(
+                'warn',
+                '이 기기의 모션 센서가 중력 값을 제공하지 않습니다',
+                '움직일 때만 순간 가속도가 잡히고 정지 시 0으로 떨어지는 환경입니다. 설정에서 방향(Beta) 모드를 시도하거나 가상 각도 슬라이더를 사용해 주세요.',
+                true,
+                false
+              );
+            }
+            return;
+          }
+          noGravitySamples = 0;
+
+          // Adaptive low-pass filter on the gravity vector: dampens hand-lift inertia, locks steady when still
+          var alpha = (mag > 11.0 || mag < 8.6) ? 0.08 : 0.22;
+          if (lpfGx === null) {
+            lpfGx = ax;
+            lpfGy = ay;
+            lpfGz = az;
+          } else {
+            lpfGx = lpfGx * (1 - alpha) + ax * alpha;
+            lpfGy = lpfGy * (1 - alpha) + ay * alpha;
+            lpfGz = lpfGz * (1 - alpha) + az * alpha;
+          }
+
+          var pitchDeg = computeGravityAngleFromVector(lpfGx, lpfGy, lpfGz);
+          latestGravityPitch = pitchDeg;
+
+          if (settings.sensorMode === 'motion') {
+            applySensorAngle(pitchDeg, 'motion');
+          } else if (settings.sensorMode === 'auto') {
+            if (!orientationReceived || autoSwitchedToMotion) {
+              applySensorAngle(pitchDeg, 'motion');
+            }
+          }
+        }
+
+        function startGravitySensor() {
+          if (gravitySensorInstance || typeof window.GravitySensor !== 'function') return;
+          try {
+            gravitySensorInstance = new window.GravitySensor({ frequency: 30 });
+            gravitySensorInstance.addEventListener('reading', function () {
+              if (settings.virtualMode || settings.sensorMode === 'orientation') return;
+              var gx = gravitySensorInstance.x || 0;
+              var gy = gravitySensorInstance.y || 0;
+              var gz = gravitySensorInstance.z || 0;
+              if (Math.hypot(gx, gy, gz) < 5.0) return;
+
+              gravitySensorActive = true;
+              var pitch = computeGravityAngleFromVector(gx, gy, gz);
+              // Android GravitySensor uses W3C ENU: gy > 2 and gz < 0 means tilted slightly back past 90 deg
+              if (gy > 2.0 && gz < 0) {
+                pitch = 90 + Math.atan2(-gz, Math.hypot(gx, gy)) * (180 / Math.PI);
+              }
+              latestGravityPitch = pitch;
+              applySensorAngle(pitch, 'gravity');
+            });
+            gravitySensorInstance.addEventListener('error', function () {
+              gravitySensorActive = false;
+            });
+            gravitySensorInstance.start();
+          } catch (e) {
+            gravitySensorActive = false;
+          }
+        }
+
+        function attachOrientationListener() {
+          if (!sensorBound) {
+            window.addEventListener('deviceorientation', handleDeviceOrientation);
+            window.addEventListener('deviceorientationabsolute', handleDeviceOrientationAbsolute);
+            if ('DeviceMotionEvent' in window) {
+              window.addEventListener('devicemotion', handleDeviceMotion);
+            }
+            if (settings.sensorMode !== 'orientation') {
+              startGravitySensor();
+            }
+            sensorBound = true;
+          }
+        }
+
+        function scheduleSensorFallbackCheck() {
+          if (hardwareReceived) return;
+          if (sensorFallbackTimer) clearTimeout(sensorFallbackTimer);
+          sensorFallbackTimer = setTimeout(function () {
+            if (!isMonitoring || hardwareReceived || settings.virtualMode) return;
+
+            var isInIframe = false;
+            try {
+              isInIframe = window.self !== window.top;
+            } catch (e) {
+              isInIframe = true;
+            }
+            var isFileOrInsecure = !window.isSecureContext || (window.location && (window.location.protocol === 'file:' || window.location.protocol === 'content:'));
+
+            if (isFileOrInsecure) {
+              showNotice(
+                'warn',
+                '보안 연결(HTTPS)이 아니어서 센서가 차단되었습니다',
+                '모바일 브라우저(Chrome/Safari)는 보안상 로컬 파일(file://)이나 일반 HTTP에서 기울기 센서를 막습니다. HTTPS 웹 주소로 접속해 주세요.',
+                true,
+                false
+              );
+            } else if (isInIframe) {
+              showNotice(
+                'warn',
+                '미리보기 프레임(iframe) 안에서 센서가 차단되었습니다',
+                '현재 화면이 다른 앱 내부 프레임에서 열려 있어 휴대폰 센서가 동작하지 않을 수 있습니다. 아래 [새 탭에서 열기]를 눌러 Chrome 또는 Safari에서 직접 실행해 주세요.',
+                true,
+                true
+              );
+            } else {
+              showNotice(
+                'info',
+                '기울기 센서 신호가 감지되지 않았습니다',
+                'PC 브라우저이거나 브라우저 설정에서 모션 센서가 꺼져 있을 수 있습니다(Chrome: 사이트 설정 > 모션 센서 허용 / iOS: 설정 > Safari > 동작 및 방향 접근).',
+                true,
+                false
+              );
+            }
+          }, 1300);
+        }
+
+        // Core Monitoring Start / Stop (Handles iOS 13+ permission inside click handler!)
+        async function startMonitoring() {
+          ensureAudioUnlocked();
+
+          if (!settings.virtualMode) {
+            var hasOrientationApi = typeof window !== 'undefined' && ('DeviceOrientationEvent' in window || 'DeviceMotionEvent' in window);
+            if (!hasOrientationApi) {
+              showNotice(
+                'warn',
+                '모션 센서를 지원하지 않는 브라우저입니다',
+                '현재 기기/브라우저에서는 기울기 센서를 사용할 수 없습니다. 테스트용 가상 각도 슬라이더를 켜서 바로 사용해보세요.',
+                true,
+                false
+              );
+              enableVirtualMode(true);
+              return;
+            }
+
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+              try {
+                var permissionResult = await DeviceOrientationEvent.requestPermission();
+                if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+                  try { await DeviceMotionEvent.requestPermission(); } catch (e) {}
+                }
+                if (permissionResult === 'granted') {
+                  permissionDenied = false;
+                  hideNotice();
+                  attachOrientationListener();
+                  scheduleSensorFallbackCheck();
+                } else {
+                  permissionDenied = true;
+                  showNotice(
+                    'warn',
+                    '동작 및 방향 센서 권한이 거부되었습니다',
+                    'iOS Safari 설정 > Safari > 동작 및 방향 접근을 허용하거나 새로고침 후 다시 시도해주세요. 아래 버튼으로 테스트 슬라이더를 바로 사용할 수 있습니다.',
+                    true,
+                    false
+                  );
+                  updateHeaderAndButtons();
+                  return;
+                }
+              } catch (err) {
+                permissionDenied = true;
+                var isIframeNow = false;
+                try { isIframeNow = window.self !== window.top; } catch (e) { isIframeNow = true; }
+                showNotice(
+                  'warn',
+                  '센서 권한 요청이 차단되었습니다',
+                  isIframeNow
+                    ? '미리보기 프레임(iframe) 안에서는 iOS 센서 권한 요청이 차단됩니다. [새 탭에서 열기]를 눌러 Safari에서 직접 실행해 주세요.'
+                    : 'HTTPS 보안 연결 환경이 아니거나 권한이 차단되었습니다. 가상 각도 슬라이더 모드로 전환해 테스트할 수 있습니다.',
+                  true,
+                  isIframeNow
+                );
+                updateHeaderAndButtons();
+                return;
+              }
+            } else {
+              attachOrientationListener();
+              scheduleSensorFallbackCheck();
+            }
+          }
+
+          isMonitoring = true;
+          lastTickTime = performance.now();
+          secondAccumulatorMs = 0;
+          dangerStartTime = null;
+          stopFeedback();
+
+          if (tickInterval) clearInterval(tickInterval);
+          tickInterval = setInterval(runMonitoringTick, 100);
+
+          updateHeaderAndButtons();
+          updateGaugeVisuals();
+        }
+
+        function pauseMonitoring() {
+          isMonitoring = false;
+          if (tickInterval) {
+            clearInterval(tickInterval);
+            tickInterval = null;
+          }
+          if (sensorFallbackTimer) {
+            clearTimeout(sensorFallbackTimer);
+            sensorFallbackTimer = null;
+          }
+          dangerStartTime = null;
+          countdownStrip.classList.remove('visible');
+          stopFeedback();
+          updateHeaderAndButtons();
+          updateGaugeVisuals();
+        }
+
+        function toggleMonitoring() {
+          if (isMonitoring) {
+            pauseMonitoring();
+          } else {
+            startMonitoring();
+          }
+        }
+
+        function runMonitoringTick() {
+          if (!isMonitoring) return;
+
+          var now = performance.now();
+          var dt = now - lastTickTime;
+          lastTickTime = now;
+          if (dt < 0 || dt > 5000) dt = 100;
+
+          var rounded = Math.round(currentAngle);
+          var state = evaluatePosture(rounded);
+
+          // Accumulate 1-second stats
+          secondAccumulatorMs += dt;
+          if (secondAccumulatorMs >= 1000) {
+            var wholeSeconds = Math.floor(secondAccumulatorMs / 1000);
+            secondAccumulatorMs -= wholeSeconds * 1000;
+
+            if (stats.date !== getTodayKey()) {
+              stats = createEmptyStats();
+            }
+
+            var bucketKey = getCurrentBucketKey();
+            stats.totalSeconds += wholeSeconds;
+            stats.buckets[bucketKey].total += wholeSeconds;
+
+            if (state === 'good') {
+              stats.goodSeconds += wholeSeconds;
+              stats.buckets[bucketKey].good += wholeSeconds;
+            }
+
+            saveStats();
+            updateStatsUI();
+          }
+
+          // Danger Countdown & Alarm Logic
+          if (state === 'danger') {
+            if (dangerStartTime === null) {
+              dangerStartTime = now;
+            }
+            var elapsedSec = (now - dangerStartTime) / 1000;
+            var remaining = Math.max(0, settings.alertDelay - elapsedSec);
+
+            countdownStrip.classList.add('visible');
+            if (remaining > 0) {
+              countdownMessage.textContent = '거북목 위험 감지 · 고개를 들어주세요';
+              countdownTimer.textContent = remaining.toFixed(1) + '초 후 알림';
+            } else {
+              countdownMessage.textContent = '거북목 자세 경고 작동 중!';
+              countdownTimer.textContent = '자세 교정 필요';
+
+              if (!isAlarmActive) {
+                isAlarmActive = true;
+                document.body.classList.add('alarm-active');
+                stats.warningCount += 1;
+                saveStats();
+                updateStatsUI();
+                triggerFeedbackPulse();
+                lastFeedbackTime = now;
+              } else if (now - lastFeedbackTime >= 2400) {
+                triggerFeedbackPulse();
+                lastFeedbackTime = now;
+              }
+            }
+          } else {
+            dangerStartTime = null;
+            countdownStrip.classList.remove('visible');
+            if (isAlarmActive) {
+              stopFeedback();
+            }
+          }
+        }
+
+        // Calibration
+        function calibrateCurrentPosture() {
+          ensureAudioUnlocked();
+          var clamped = Math.max(40, Math.min(110, Math.round(currentAngle)));
+          settings.baselineAngle = clamped;
+          saveSettings();
+          renderGaugeArcs();
+          updateGaugeVisuals();
+          updateSettingsModalUI();
+
+          // Subtle confirmation message in guide strip briefly
+          guideTitle.textContent = '현재 각도(' + clamped + '°)가 바른 자세 기준으로 설정되었습니다';
+          guideDesc.textContent = '기준 각도 ±15° 이내를 바른 자세 안전 범위로 판별합니다.';
+          setTimeout(function () {
+            if (guideTitle.textContent.indexOf('기준으로 설정되었습니다') !== -1) {
+              updateGaugeVisuals();
+            }
+          }, 2600);
+        }
+
+        function enableVirtualMode(enabled) {
+          settings.virtualMode = enabled;
+          virtualModeToggle.checked = enabled;
+          virtualControls.classList.toggle('visible', enabled);
+          if (enabled) {
+            currentAngle = settings.virtualAngle;
+            virtualAngleSlider.value = String(settings.virtualAngle);
+            hideNotice();
+          } else if (smoothedBeta !== null) {
+            currentAngle = smoothedBeta;
+          }
+          saveSettings();
+          updateHeaderAndButtons();
+          updateGaugeVisuals();
+        }
+
+        // Theme & Settings UI
+        function applyDarkMode(isDark) {
+          document.documentElement.classList.toggle('dark', isDark);
+          themeColorMeta.setAttribute('content', isDark ? '#0B192C' : '#F0F5FA');
+        }
+
+        function updateSettingsModalUI() {
+          delayOptionBtns.forEach(function (btn) {
+            var val = Number(btn.getAttribute('data-delay'));
+            btn.classList.toggle('active', val === settings.alertDelay);
+          });
+          sensorModeOptionBtns.forEach(function (btn) {
+            var mode = btn.getAttribute('data-mode');
+            btn.classList.toggle('active', mode === settings.sensorMode);
+          });
+          updateSensorDiagnostics();
+          soundToggle.checked = settings.soundEnabled;
+          vibrateToggle.checked = settings.vibrateEnabled;
+          darkModeToggle.checked = settings.darkMode;
+          if (settings.baselineAngle !== null) {
+            settingsBaselineDesc.textContent = '맞춤 기준 ' + Math.round(settings.baselineAngle) + '° 적용 중';
+            resetBaselineBtn.disabled = false;
+            resetBaselineBtn.style.opacity = '1';
+          } else {
+            settingsBaselineDesc.textContent = '기본 안전 범위(60°~100°) 사용 중';
+            resetBaselineBtn.disabled = true;
+            resetBaselineBtn.style.opacity = '0.5';
+          }
+        }
+
+        // Event Bindings
+        desktopStartBtn.addEventListener('click', toggleMonitoring);
+        mobileStartBtn.addEventListener('click', toggleMonitoring);
+        desktopCalibrateBtn.addEventListener('click', calibrateCurrentPosture);
+        mobileCalibrateBtn.addEventListener('click', calibrateCurrentPosture);
+
+        noticeActionBtn.addEventListener('click', function () {
+          enableVirtualMode(true);
+          if (!isMonitoring) {
+            startMonitoring();
+          }
+        });
+
+        virtualModeToggle.addEventListener('change', function (e) {
+          enableVirtualMode(e.target.checked);
+        });
+
+        virtualAngleSlider.addEventListener('input', function (e) {
+          var val = Number(e.target.value);
+          settings.virtualAngle = val;
+          if (settings.virtualMode) {
+            currentAngle = val;
+            updateGaugeVisuals();
+          }
+          saveSettings();
+        });
+
+        presetAngleBtns.forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var val = Number(btn.getAttribute('data-angle'));
+            settings.virtualAngle = val;
+            virtualAngleSlider.value = String(val);
+            if (!settings.virtualMode) {
+              enableVirtualMode(true);
+            }
+            currentAngle = val;
+            saveSettings();
+            updateGaugeVisuals();
+          });
+        });
+
+        // Settings Modal
+        openSettingsBtn.addEventListener('click', function () {
+          updateSettingsModalUI();
+          settingsModal.classList.add('open');
+        });
+        closeSettingsBtn.addEventListener('click', function () {
+          settingsModal.classList.remove('open');
+        });
+        settingsModal.addEventListener('click', function (e) {
+          if (e.target === settingsModal) settingsModal.classList.remove('open');
+        });
+
+        delayOptionBtns.forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            settings.alertDelay = Number(btn.getAttribute('data-delay'));
+            saveSettings();
+            updateSettingsModalUI();
+          });
+        });
+
+        sensorModeOptionBtns.forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            settings.sensorMode = btn.getAttribute('data-mode');
+            autoSwitchedToMotion = false;
+            driftMismatchStart = null;
+            smoothedBeta = null;
+            saveSettings();
+            if (settings.sensorMode !== 'orientation' && sensorBound && !gravitySensorInstance) {
+              startGravitySensor();
+            }
+            updateSettingsModalUI();
+          });
+        });
+
+        soundToggle.addEventListener('change', function (e) {
+          settings.soundEnabled = e.target.checked;
+          if (settings.soundEnabled) ensureAudioUnlocked();
+          saveSettings();
+        });
+
+        testSoundBtn.addEventListener('click', function () {
+          ensureAudioUnlocked();
+          playAlertTone();
+        });
+
+        vibrateToggle.addEventListener('change', function (e) {
+          settings.vibrateEnabled = e.target.checked;
+          if (settings.vibrateEnabled && typeof navigator.vibrate === 'function') {
+            try { navigator.vibrate(120); } catch (err) {}
+          }
+          saveSettings();
+        });
+
+        darkModeToggle.addEventListener('change', function (e) {
+          settings.darkMode = e.target.checked;
+          applyDarkMode(settings.darkMode);
+          saveSettings();
+        });
+
+        resetBaselineBtn.addEventListener('click', function () {
+          settings.baselineAngle = null;
+          saveSettings();
+          renderGaugeArcs();
+          updateGaugeVisuals();
+          updateSettingsModalUI();
+        });
+
+        downloadHtmlBtn.addEventListener('click', function () {
+          try {
+            var clone = document.documentElement.cloneNode(true);
+            clone.classList.remove('dark');
+            var cloneBody = clone.querySelector('body');
+            if (cloneBody) cloneBody.classList.remove('alarm-active');
+            var modals = clone.querySelectorAll('.modal-backdrop');
+            modals.forEach(function (m) { m.classList.remove('open'); });
+            var viteScripts = clone.querySelectorAll('script[src*="@vite"]');
+            viteScripts.forEach(function (s) { s.parentNode.removeChild(s); });
+            var htmlString = '<!doctype html>\n' + clone.outerHTML;
+            var blob = new Blob([htmlString], { type: 'text/html;charset=utf-8' });
+            var url = URL.createObjectURL(blob);
+            var link = document.createElement('a');
+            link.href = url;
+            link.download = 'turtle-neck-corrector.html';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+          } catch (err) {}
+        });
+
+        // Reset Confirmation Modal
+        openResetModalBtn.addEventListener('click', function () {
+          resetModal.classList.add('open');
+        });
+        closeResetBtn.addEventListener('click', function () {
+          resetModal.classList.remove('open');
+        });
+        cancelResetBtn.addEventListener('click', function () {
+          resetModal.classList.remove('open');
+        });
+        resetModal.addEventListener('click', function (e) {
+          if (e.target === resetModal) resetModal.classList.remove('open');
+        });
+        confirmResetBtn.addEventListener('click', function () {
+          stats = createEmptyStats();
+          saveStats();
+          updateStatsUI();
+          resetModal.classList.remove('open');
+        });
+
+        // Escape key closes modals
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape') {
+            settingsModal.classList.remove('open');
+            resetModal.classList.remove('open');
+          }
+        });
+
+        // Initial Render
+        applyDarkMode(settings.darkMode);
+        virtualModeToggle.checked = settings.virtualMode;
+        virtualControls.classList.toggle('visible', settings.virtualMode);
+        virtualAngleSlider.value = String(settings.virtualAngle);
+
+        renderGaugeArcs();
+        updateHeaderAndButtons();
+        updateGaugeVisuals();
+        updateStatsUI();
+        updateSettingsModalUI();
+      })();
+    </script>
+  
+
+</body></html>
